@@ -22,6 +22,7 @@ import os
 import re
 import sys
 import glob
+import shutil
 import argparse
 import subprocess
 
@@ -42,6 +43,10 @@ class TempDir(object):
 		return os.path.join(cls.tempdir, '%%05d.%s' % extension)
 
 	@classmethod
+	def outputSequence(cls, i, extension):
+		return os.path.join(cls.tempdir, '%05d.%s' % (i, extension))
+
+	@classmethod
 	def make(cls):
 		"""Make the temporary directory."""
 		print 'Make tempdir...'
@@ -60,7 +65,6 @@ class TempDir(object):
 			r = subprocess.call(cmd1, shell=True, stderr=devnull)
 			r = subprocess.call(cmd2, shell=True, stderr=devnull)
 			r = subprocess.call(cmd3, shell=True, stderr=devnull)
-
 
 def video_get_fps(filename):
 	cmd = 'ffmpeg -i %s' % filename
@@ -91,14 +95,28 @@ def natsort_keys(string):
 def convert_vid_to_jpegs(filename, framerate=False):
 	"""Convert the mpeg to a sequence of JPEG images."""
 	print 'Convert to JPEGs...'
-	cmd = 'ffmpeg -i %s %s' % (filename, TempDir.output('jpg'))
+	cmd = 'ffmpeg -i "%s" "%s"' % (filename, TempDir.output('jpg'))
 	if framerate:
-		cmd = 'ffmpeg -i %s -r %d %s' % (filename, framerate,
+		cmd = 'ffmpeg -i "%s" -r %d "%s"' % (filename, framerate,
 				TempDir.output('jpg'))
 
-	print cmd
 	with open(os.devnull, 'w') as devnull:
 		r = subprocess.call(cmd, shell=True, stderr=devnull)
+
+def copy_jpeg_sequence_in_reverse():
+	"""
+	"""
+	print "Append reversed JPEG sequence..."
+	files = glob.glob(TempDir.glob('jpg'))
+	files.sort(key=natsort_keys)
+
+	num = len(files)
+	i = num*2
+
+	for f in files[1:-1]:
+		#shutil.copyfile(f, outdir+'/'+str(i)+'.jpg')
+		shutil.copyfile(f, TempDir.outputSequence(i, 'jpg'))
+		i -= 1
 
 def delete_frames(num):
 	"""Remove one frame for every X many."""
@@ -202,6 +220,8 @@ def main():
 	TempDir.cleanup()
 
 	convert_vid_to_jpegs(args.input, args.framerate)
+
+	copy_jpeg_sequence_in_reverse()
 
 	if args.delete:
 		delete_frames(args.delete)
