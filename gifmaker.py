@@ -44,11 +44,9 @@ class TempDir(object):
 		return os.path.join(cls.tempdir, '*.%s' % extension)
 
 	@classmethod
-	def output(cls, extension):
-		return os.path.join(cls.tempdir, '%%05d.%s' % extension)
-
-	@classmethod
-	def outputSequence(cls, i, extension):
+	def target(cls, extension, i=False):
+		if type(i) == bool:
+			return os.path.join(cls.tempdir, '%%05d.%s' % extension)
 		return os.path.join(cls.tempdir, '%05d.%s' % (i, extension))
 
 	@classmethod
@@ -100,10 +98,10 @@ def video_get_fps(filename):
 def convert_vid_to_jpegs(filename, framerate=False):
 	"""Convert the mpeg to a sequence of JPEG images."""
 	print 'Convert to JPEGs...'
-	cmd = 'ffmpeg -i "%s" "%s"' % (filename, TempDir.output('jpg'))
+	cmd = 'ffmpeg -i "%s" "%s"' % (filename, TempDir.target('jpg'))
 	if framerate:
 		cmd = 'ffmpeg -i "%s" -r %d "%s"' % (filename, framerate,
-				TempDir.output('jpg'))
+				TempDir.target('jpg'))
 
 	with open(os.devnull, 'w') as devnull:
 		r = subprocess.call(cmd, shell=True, stderr=devnull)
@@ -118,7 +116,7 @@ def copy_jpeg_sequence_in_reverse():
 	i = num*2
 
 	for f in files[1:-1]:
-		shutil.copyfile(f, TempDir.outputSequence(i, 'jpg'))
+		shutil.copyfile(f, TempDir.target('jpg', i))
 		i -= 1
 
 def delete_frames(num):
@@ -149,7 +147,7 @@ def convert_jpegs_to_gifs():
 	"""Convert JPEG frames into gif frames."""
 	print 'Convert JPEGs to GIFs...'
 	cmd = 'convert %s %s' % (
-		TempDir.wildcard('jpg'), TempDir.output('miff'))
+		TempDir.wildcard('jpg'), TempDir.target('miff'))
 	r = subprocess.call(cmd, shell=True)
 
 def assemble_animated_gif(filename, delay=0):
