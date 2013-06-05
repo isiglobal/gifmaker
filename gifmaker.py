@@ -18,8 +18,10 @@ Copyright 2013 Brandon Thomas <bt@brand.io>
 """
 
 # TODO: Arbitrary temporary directory via argument
-# TODO: Resize without cropping (option)
-# TODO: Option to cleanup
+# TODO: Resize without cropping (options: border, disobey strict 
+#		dimensions, etc)
+# TODO: Option to cleanup (perhaps make default, too...)
+# TODO: Utilize temporary filesystem /tmp
 
 import os
 import re
@@ -115,7 +117,7 @@ def copy_jpeg_sequence_in_reverse():
 	num = len(files)
 	i = num*2
 
-	for f in files[0:-1]:
+	for f in files[1:-1]:
 		shutil.copyfile(f, TempDir.outputSequence(i, 'jpg'))
 		i -= 1
 
@@ -132,12 +134,12 @@ def delete_frames(num):
 			os.remove(fn)
 		i += 1
 
-def resize_jpegs(width, height, quality=100):
+def resize_jpegs(width, height, gravity='Center', quality=100):
 	"""Resize the jpegs to specified dimenions."""
 	cmd1 ='mogrify -quality %d -resize %dx%d %s' % (
 			quality, 1200, height, TempDir.wildcard('jpg'))
-	cmd2 ='mogrify -quality %d -gravity Center -crop %dx%d+0+0 %s' % (
-			quality, width, height, TempDir.wildcard('jpg'))
+	cmd2 ='mogrify -quality %d -gravity %s -crop %dx%d+0+0 %s' % (
+			quality, gravity, width, height, TempDir.wildcard('jpg'))
 	print 'Resize JPEGs...'
 	r = subprocess.call(cmd1, shell=True)
 	print 'Crop JPEGs...'
@@ -173,12 +175,6 @@ def request_args():
 	parser = argparse.ArgumentParser(
 			description='Convert an mp4 clip into a gif image.')
 
-	parser.add_argument('-s', '--size', dest='size',
-					action='store',
-					metavar='DIMENSION',
-					required=True,
-					help='Size as WxH or simply W for \'square\'')
-
 	parser.add_argument('-r', '--reverse', dest='reverse',
 					action='store_true',
 					required=False,
@@ -191,6 +187,35 @@ def request_args():
 					type=int,
 					default=0,
 					help='Specify the output framerate.')
+
+	parser.add_argument('-d', '--delay', dest='delay',
+					action='store',
+					metavar='DELAY',
+					type=int,
+					default=0,
+					help='Specify the gif animation delay. Default '
+						'is no delay. See also: output fps (-r).')
+
+	parser.add_argument('-s', '--size', dest='size',
+					action='store',
+					metavar='DIMENSION',
+					required=True,
+					help='Size as WxH or simply W for \'square\'')
+
+	parser.add_argument('-g', '--gravity', dest='gravity',
+					action='store',
+					metavar='GRAVITY',
+					required=False,
+					default='Center',
+					choices = [
+						'NorthWest', 'North', 'NorthEast',
+						'West', 'Center', 'East',
+						'SouthWest', 'South', 'SouthEast',
+					],
+					help='If cropped, gravity may be: NorthWest, '
+						+ 'North, NorthEast, West, Center, East, '
+						+ 'SouthWest, South, SouthEast. Center is '
+						+ 'default.')
 
 	parser.add_argument('input',
 					action='store',
@@ -226,11 +251,11 @@ def main():
 	if args.reverse:
 		copy_jpeg_sequence_in_reverse()
 
-	resize_jpegs(args.width, args.height)
+	resize_jpegs(args.width, args.height, gravity=args.gravity)
 
 	convert_jpegs_to_gifs()
 
-	assemble_animated_gif(args.output)
+	assemble_animated_gif(args.output, delay=args.delay)
 
 	print 'DONE!'
 
