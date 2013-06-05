@@ -5,7 +5,7 @@ Take the input mp4 file and convert it into a gif animation
 of the dimensions specified.
 
 The jpeg intermediate frames are not cleaned up so that any
-frame may be used as a still.
+frame may be chosen as a still.
 
 Requires ImageMagick and ffmpeg!
 
@@ -15,8 +15,8 @@ Copyright 2013 Brandon Thomas <bt@brand.io>
 """
 
 # TODO: Arbitrary temporary directory via argument
-# TODO: Default resize dimensions
-# TODO: Reverse not yet implemented
+# TODO: Resize without cropping (option)
+# TODO: Option to cleanup
 
 import os
 import re
@@ -113,8 +113,7 @@ def copy_jpeg_sequence_in_reverse():
 	num = len(files)
 	i = num*2
 
-	for f in files[1:-1]:
-		#shutil.copyfile(f, outdir+'/'+str(i)+'.jpg')
+	for f in files[0:-1]:
 		shutil.copyfile(f, TempDir.outputSequence(i, 'jpg'))
 		i -= 1
 
@@ -158,50 +157,54 @@ def assemble_animated_gif(filename, delay=0):
 
 def request_args():
 	"""Setup and parse commandline args."""
+
+	def process_dimensions(string):
+		dims = string.split('x')
+		if len(dims) < 2:
+			dims.append(dims[0])
+
+		return {
+			'width': int(dims[0]),
+			'height': int(dims[1])
+		}
+
 	parser = argparse.ArgumentParser(
 			description='Convert an mp4 clip into a gif image.')
-	"""
-	parser.add_argument('-r', '--reverse', dest='reverse',
-					action='store_true',
-					default=False,
-					help='Append reversed playback for easy looping.')
-	"""
+
 	parser.add_argument('-s', '--size', dest='size',
 					action='store',
 					metavar='DIMENSION',
 					required=True,
 					help='Size as WxH or simply W for \'square\'')
-	parser.add_argument('-d', '--delete-every', dest='delete',
-					action='store',
-					metavar='NUM',
-					type=int,
-					default=0,
-					help='Delete every NUM many frames.')
-	parser.add_argument('-r', '--framerate', dest='framerate',
+
+	parser.add_argument('-r', '--reverse', dest='reverse',
+					action='store_true',
+					required=False,
+					default=False,
+					help='Append reversed playback for easy looping.')
+
+	parser.add_argument('-f', '--framerate', dest='framerate',
 					action='store',
 					metavar='FPS',
 					type=int,
 					default=0,
 					help='Specify the output framerate.')
+
 	parser.add_argument('input',
 					action='store',
 					metavar='SOURCE',
 					help='mp4 input filename')
+
 	parser.add_argument('output',
 					action='store',
 					metavar='DEST',
 					help='gif output filename')
+
 	args = parser.parse_args()
 
-	dims = args.size.split('x')
-	if len(dims) < 2:
-		dims.append(dims[0])
-
-	width = dims[0]
-	height = dims[1]
-
-	args.width = int(width)
-	args.height = int(height)
+	dims = process_dimensions(args.size)
+	args.width = dims['width']
+	args.height = dims['height']
 
 	args.input = os.path.realpath(os.path.expanduser(args.input))
 
@@ -213,21 +216,18 @@ def main():
 	"""
 	args = request_args()
 
-	print args
-	print video_get_fps(args.input)
-
 	TempDir.make()
 	TempDir.cleanup()
 
 	convert_vid_to_jpegs(args.input, args.framerate)
 
-	copy_jpeg_sequence_in_reverse()
-
-	if args.delete:
-		delete_frames(args.delete)
+	if args.reverse:
+		copy_jpeg_sequence_in_reverse()
 
 	resize_jpegs(args.width, args.height)
+
 	convert_jpegs_to_gifs()
+
 	assemble_animated_gif(args.output)
 
 	print 'DONE!'
