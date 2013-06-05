@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
 """
-Take the input video file and convert it into a gif animation
-of the dimensions specified.
+Gifmaker: Convert video files into gif animations. There are
+options to control output framerate, reverse playback, output
+size, and more. The jpeg intermediate frames that are created
+during processing are not cleaned up by default so that any
+of the frames may be chosen as a higher-quality still.
 
-The jpeg intermediate frames are not cleaned up so that any
-frame may be chosen as a still.
-
-Set the output framerate to control the file size and timing.
+Note: Adjust the output framerate to control the file size and
+timing.
 
 Requires ImageMagick and ffmpeg!
 
-	See	`./convert.py --help` for usage info.
+	See	`./gifmaker.py --help` for usage info.
 
 Copyright 2013 Brandon Thomas <bt@brand.io>
 """
