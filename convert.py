@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 """
-Take the input mp4 file and convert it into a gif animation
+Take the input video file and convert it into a gif animation
 of the dimensions specified.
 
 The jpeg intermediate frames are not cleaned up so that any
 frame may be chosen as a still.
+
+Set the output framerate to control the file size and timing.
 
 Requires ImageMagick and ffmpeg!
 
@@ -35,7 +37,7 @@ class TempDir(object):
 	tempdir = os.path.join(os.getcwd(), TEMP_DIR)
 
 	@classmethod
-	def glob(cls, extension):
+	def wildcard(cls, extension):
 		return os.path.join(cls.tempdir, '*.%s' % extension)
 
 	@classmethod
@@ -58,13 +60,23 @@ class TempDir(object):
 	def cleanup(cls):
 		"""Cleanup the temorary directory of all files."""
 		print 'Cleanup tempdir...'
-		cmd1 = 'rm %s' % cls.glob('jpg')
-		cmd2 = 'rm %s' % cls.glob('gif')
-		cmd3 = 'rm %s' % cls.glob('miff')
+		cmd1 = 'rm %s' % cls.wildcard('jpg')
+		cmd2 = 'rm %s' % cls.wildcard('gif')
+		cmd3 = 'rm %s' % cls.wildcard('miff')
 		with open(os.devnull, 'w') as devnull:
 			r = subprocess.call(cmd1, shell=True, stderr=devnull)
 			r = subprocess.call(cmd2, shell=True, stderr=devnull)
 			r = subprocess.call(cmd3, shell=True, stderr=devnull)
+
+def natsort_keys(string):
+	"""
+	Sort numbers naturally.
+	Python should really implement this, damnit.
+	http://stackoverflow.com/a/5967539
+	"""
+	def atoi(string):
+		return int(string) if string.isdigit() else string
+	return [atoi(x) for x in re.split('(\d+)', string)]
 
 def video_get_fps(filename):
 	cmd = 'ffmpeg -i %s' % filename
@@ -82,16 +94,6 @@ def video_get_fps(filename):
 
 	return float(fps[0])
 
-def natsort_keys(string):
-	"""
-	Sort numbers naturally.
-	Python should really implement this, damnit.
-	http://stackoverflow.com/a/5967539
-	"""
-	def atoi(string):
-		return int(string) if string.isdigit() else string
-	return [atoi(x) for x in re.split('(\d+)', string)]
-
 def convert_vid_to_jpegs(filename, framerate=False):
 	"""Convert the mpeg to a sequence of JPEG images."""
 	print 'Convert to JPEGs...'
@@ -104,10 +106,9 @@ def convert_vid_to_jpegs(filename, framerate=False):
 		r = subprocess.call(cmd, shell=True, stderr=devnull)
 
 def copy_jpeg_sequence_in_reverse():
-	"""
-	"""
+	"""Copy a JPEG sequence, reverse it, append it."""
 	print "Append reversed JPEG sequence..."
-	files = glob.glob(TempDir.glob('jpg'))
+	files = glob.glob(TempDir.wildcard('jpg'))
 	files.sort(key=natsort_keys)
 
 	num = len(files)
@@ -120,7 +121,7 @@ def copy_jpeg_sequence_in_reverse():
 def delete_frames(num):
 	"""Remove one frame for every X many."""
 	print "Deleting 1 in every %d frames..." % num
-	files = glob.glob(TempDir.glob('jpg'))
+	files = glob.glob(TempDir.wildcard('jpg'))
 	files.sort(key=natsort_keys)
 
 	i = 0
@@ -133,9 +134,9 @@ def delete_frames(num):
 def resize_jpegs(width, height, quality=100):
 	"""Resize the jpegs to specified dimenions."""
 	cmd1 ='mogrify -quality %d -resize %dx%d %s' % (
-			quality, 1200, height, TempDir.glob('jpg'))
+			quality, 1200, height, TempDir.wildcard('jpg'))
 	cmd2 ='mogrify -quality %d -gravity Center -crop %dx%d+0+0 %s' % (
-			quality, width, height, TempDir.glob('jpg'))
+			quality, width, height, TempDir.wildcard('jpg'))
 	print 'Resize JPEGs...'
 	r = subprocess.call(cmd1, shell=True)
 	print 'Crop JPEGs...'
@@ -145,14 +146,14 @@ def convert_jpegs_to_gifs():
 	"""Convert JPEG frames into gif frames."""
 	print 'Convert JPEGs to GIFs...'
 	cmd = 'convert %s %s' % (
-		TempDir.glob('jpg'), TempDir.output('miff'))
+		TempDir.wildcard('jpg'), TempDir.output('miff'))
 	r = subprocess.call(cmd, shell=True)
 
 def assemble_animated_gif(filename, delay=0):
 	"""Assemble gif frames into final animated gif."""
 	print 'Assemble animated GIF...'
 	cmd = 'convert -delay %d -loop 0 %s %s' % (
-			delay, TempDir.glob('miff'), filename)
+			delay, TempDir.wildcard('miff'), filename)
 	r = subprocess.call(cmd, shell=True)
 
 def request_args():
